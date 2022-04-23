@@ -18,21 +18,23 @@ import (
 var (
 	// Encoder is used to output the result of the consumer-supplied handler.
 	// It doesn't return an error since the function will handle errors itself.
-	Encoder func(w http.ResponseWriter, out any) bool = JSONEncoder
+	Encoder = JSONEncoder
 
 	// Decoder is what the handler functions below use to decode requests with bodies.
 	//
 	// It returns if the operation was successful. It doesn't return an error since
 	// the function will handle errors itself.
-	Decoder func(w http.ResponseWriter, r *http.Request, dest any) bool = JSONDecoder
+	Decoder = JSONDecoder
 
 	// JSONEncoder writes the value out as JSON. If unable, it will write the error and
 	// a 500 error code
-	JSONEncoder = func(w http.ResponseWriter, out any) bool {
+	JSONEncoder = func(w http.ResponseWriter, out any, status int) bool {
 		// We wrote JSON, so tell the response that it's coming back as JSON
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
 
 		if err := json.NewEncoder(w).Encode(out); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return false
 		}
 
@@ -64,12 +66,6 @@ type Request struct {
 	Request *http.Request
 }
 
-// BodyRequest is the decoded request with the associated body
-type BodyRequest[T any] struct {
-	Request *http.Request
-	Body    T
-}
-
 // Result holds the necessary fields that will be output for a response
 type Result[T, E any, ErrT Err[E]] struct {
 	Value      T
@@ -91,17 +87,26 @@ func (h Handler[Out, E]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		outVal = res.Err
 	}
 
-	// Write the value back out
-	if ok := Encoder(w, outVal); !ok {
-		return
+	// If there's a StatusCode, use that as the header
+	status := http.StatusOK
+	if res.StatusCode > 0 {
+		status = res.StatusCode
 	}
 
-	// If there's a StatusCode, use that as the header
-	if res.StatusCode > 0 {
-		w.WriteHeader(res.StatusCode)
+	// Write the value back out
+	if ok := Encoder(w, outVal, status); !ok {
+		return
 	}
 }
 
+// BodyRequest is the decoded request with the associated body
+type BodyRequest[T any] struct {
+	Request *http.Request
+	Body    T
+}
+
+// BodyHandler is a type that represents a handler that will recieve a body
+// and output a body in the response.
 type BodyHandler[In, Out, E any] func(i BodyRequest[In]) Result[Out, E, *E]
 
 // ServeHTTP implements the http.Handler interface
@@ -123,13 +128,14 @@ func (h BodyHandler[In, Out, E]) ServeHTTP(w http.ResponseWriter, r *http.Reques
 		outVal = res.Err
 	}
 
-	// Write the value back out
-	if ok := Encoder(w, outVal); !ok {
-		return
+	// If there's a StatusCode, use that as the header
+	status := http.StatusOK
+	if res.StatusCode > 0 {
+		status = res.StatusCode
 	}
 
-	// If there's a StatusCode, use that as the header
-	if res.StatusCode > 0 {
-		w.WriteHeader(res.StatusCode)
+	// Write the value back out
+	if ok := Encoder(w, outVal, status); !ok {
+		return
 	}
 }
