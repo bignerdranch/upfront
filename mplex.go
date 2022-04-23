@@ -11,8 +11,16 @@ type Err[T any] interface {
 	*T
 }
 
-// Req is what comes into a handler function
-type Req[T any] struct {
+// Request holds the request details for requests without a body, e.g. GET
+//
+// Instead of using a plain http.Request, this gives us the ability to
+// add fields later and evolve this type without breaking the package's API.
+type Request struct {
+	Request *http.Request
+}
+
+// BodyRequest is the decoded request with the associated body
+type BodyRequest[T any] struct {
 	Request *http.Request
 	Body    T
 }
@@ -24,20 +32,13 @@ type Result[T, E any, ErrT Err[E]] struct {
 	StatusCode int // If not set, this will be a 200: http.StatusOK
 }
 
-type InOutHandler[In, Out, E any] func(i Req[In]) Result[Out, E, *E]
+// Handler is the type for a function that gets a request without a body
+type Handler[Out, E any] func(i Request) Result[Out, E, *E]
 
-func (h InOutHandler[In, Out, E]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Read the body into the In type to pass into the function
-	var in In
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		// TODO: Need to handle this error custom-ly according to the client
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	res := h(Req[In]{
+// ServeHTTP implements the http.Handler interface
+func (h Handler[Out, E]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	res := h(Request{
 		Request: r,
-		Body:    in,
 	})
 
 	// If there's a StatusCode, use that as the header
@@ -60,11 +61,21 @@ func (h InOutHandler[In, Out, E]) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-type OutHandler[Out, E any] func(i Req[struct{}]) Result[Out, E, *E]
+type BodyHandler[In, Out, E any] func(i BodyRequest[In]) Result[Out, E, *E]
 
-func (h OutHandler[Out, E]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	res := h(Req[struct{}]{
+// ServeHTTP implements the http.Handler interface
+func (h BodyHandler[In, Out, E]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Read the body into the In type to pass into the function
+	var in In
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		// TODO: Need to handle this error custom-ly according to the client
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	res := h(BodyRequest[In]{
 		Request: r,
+		Body:    in,
 	})
 
 	// If there's a StatusCode, use that as the header

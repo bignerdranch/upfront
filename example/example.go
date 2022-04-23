@@ -59,21 +59,8 @@ func (e *APIError) MarshalJSON() ([]byte, error) {
 	return byts, nil
 }
 
-func HandleSetValue(db *MutexDB[Record]) mplex.InOutHandler[Record, Record, APIError] {
-	return func(in mplex.Req[Record]) mplex.Result[Record, APIError, *APIError] {
-		vars := mux.Vars(in.Request)
-		key := vars["key"]
-
-		db.Set(key, in.Body)
-
-		return mplex.Result[Record, APIError, *APIError]{
-			Value: in.Body,
-		}
-	}
-}
-
-func HandleGetValue(db *MutexDB[Record]) mplex.OutHandler[Record, APIError] {
-	return func(in mplex.Req[struct{}]) mplex.Result[Record, APIError, *APIError] {
+func HandleGetValue(db *MutexDB[Record]) mplex.Handler[Record, APIError] {
+	return func(in mplex.Request) mplex.Result[Record, APIError, *APIError] {
 		vars := mux.Vars(in.Request)
 		key := vars["key"]
 
@@ -90,6 +77,19 @@ func HandleGetValue(db *MutexDB[Record]) mplex.OutHandler[Record, APIError] {
 
 		return mplex.Result[Record, APIError, *APIError]{
 			Value: val,
+		}
+	}
+}
+
+func HandleSetValue(db *MutexDB[Record]) mplex.BodyHandler[Record, Record, APIError] {
+	return func(in mplex.BodyRequest[Record]) mplex.Result[Record, APIError, *APIError] {
+		vars := mux.Vars(in.Request)
+		key := vars["key"]
+
+		db.Set(key, in.Body)
+
+		return mplex.Result[Record, APIError, *APIError]{
+			Value: in.Body,
 		}
 	}
 }
