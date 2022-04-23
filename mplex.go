@@ -5,6 +5,51 @@ import (
 	"net/http"
 )
 
+// Package level handlers
+//
+// While I like to avoid package level state/variables, this seemed the easiest
+// way to provide good defaults to the consumer and while allowing them to configure
+// routine things like error handling.
+//
+// If you find that one or a few of your routes does not benefit from this pattern,
+// you'll be better off handling the exceptions manually in a vanilla http handler.
+// That'll be more flexible than trying to make one function handle case.
+
+var (
+	// Encoder is used to output the result of the consumer-supplied handler.
+	// It doesn't return an error since the function will handle errors itself.
+	Encoder func(w http.ResponseWriter, out any) bool = JSONEncoder
+
+	// Decoder is what the handler functions below use to decode requests with bodies.
+	//
+	// It returns if the operation was successful. It doesn't return an error since
+	// the function will handle errors itself.
+	Decoder func(w http.ResponseWriter, r *http.Request, dest any) bool = JSONDecoder
+
+	// JSONEncoder writes the value out as JSON. If unable, it will write the error and
+	// a 500 error code
+	JSONEncoder = func(w http.ResponseWriter, out any) bool {
+		// We wrote JSON, so tell the response that it's coming back as JSON
+		w.Header().Set("Content-Type", "application/json")
+
+		if err := json.NewEncoder(w).Encode(out); err != nil {
+			return false
+		}
+
+		return true
+	}
+
+	// JSONDecoder unmarshals the body into the given destination
+	JSONDecoder = func(w http.ResponseWriter, r *http.Request, dest any) bool {
+		if err := json.NewDecoder(r.Body).Decode(dest); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return false
+		}
+
+		return true
+	}
+)
+
 // Err is a type constraint that requires that we pass a pointer
 // to our type that will represent an error
 type Err[T any] interface {
@@ -41,23 +86,19 @@ func (h Handler[Out, E]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Request: r,
 	})
 
-	// If there's a StatusCode, use that as the header
-	if res.StatusCode > 0 {
-		w.WriteHeader(res.StatusCode)
-	}
-
 	var outVal any = res.Value
 	if res.Err != nil {
 		outVal = res.Err
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-
 	// Write the value back out
-	if err := json.NewEncoder(w).Encode(outVal); err != nil {
-		// TODO: Need to handle this error custom-ly according to the client
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if ok := Encoder(w, outVal); !ok {
 		return
+	}
+
+	// If there's a StatusCode, use that as the header
+	if res.StatusCode > 0 {
+		w.WriteHeader(res.StatusCode)
 	}
 }
 
@@ -67,9 +108,8 @@ type BodyHandler[In, Out, E any] func(i BodyRequest[In]) Result[Out, E, *E]
 func (h BodyHandler[In, Out, E]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Read the body into the In type to pass into the function
 	var in In
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		// TODO: Need to handle this error custom-ly according to the client
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if ok := Decoder(w, r, &in); !ok {
+		// Decoder will write the status and error out, we just need to exit here
 		return
 	}
 
@@ -78,22 +118,18 @@ func (h BodyHandler[In, Out, E]) ServeHTTP(w http.ResponseWriter, r *http.Reques
 		Body:    in,
 	})
 
-	// If there's a StatusCode, use that as the header
-	if res.StatusCode > 0 {
-		w.WriteHeader(res.StatusCode)
-	}
-
 	var outVal any = res.Value
 	if res.Err != nil {
 		outVal = res.Err
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-
 	// Write the value back out
-	if err := json.NewEncoder(w).Encode(outVal); err != nil {
-		// TODO: Need to handle this error custom-ly according to the client
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if ok := Encoder(w, outVal); !ok {
 		return
+	}
+
+	// If there's a StatusCode, use that as the header
+	if res.StatusCode > 0 {
+		w.WriteHeader(res.StatusCode)
 	}
 }
