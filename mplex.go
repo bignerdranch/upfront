@@ -52,10 +52,32 @@ var (
 	}
 )
 
-// Err is a type constraint that requires that we pass a pointer
-// to our type that will represent an error
-type Err[T any] interface {
-	*T
+type Nillable interface {
+}
+
+// Result holds the necessary fields that will be output for a response
+type Result[T, E any] struct {
+	StatusCode int // If not set, this will be a 200: http.StatusOK
+
+	value T
+	err   *E
+}
+
+// OKResult constructs a Result from the value and status code, no error
+// value added
+func OKResult[T, E any](v T, statusCode int) Result[T, E] {
+	return Result[T, E]{
+		StatusCode: statusCode,
+		value:      v,
+	}
+}
+
+// ErrResult constructs a Result with the given error set
+func ErrResult[T, E any](err E, statusCode int) Result[T, E] {
+	return Result[T, E]{
+		StatusCode: statusCode,
+		err:        &err,
+	}
 }
 
 // Request holds the request details for requests without a body, e.g. GET
@@ -66,15 +88,8 @@ type Request struct {
 	Request *http.Request
 }
 
-// Result holds the necessary fields that will be output for a response
-type Result[T, E any, ErrT Err[E]] struct {
-	Value      T
-	Err        ErrT
-	StatusCode int // If not set, this will be a 200: http.StatusOK
-}
-
 // Handler is the type for a function that gets a request without a body
-type Handler[Out, E any] func(i Request) Result[Out, E, *E]
+type Handler[Out, E any] func(i Request) Result[Out, E]
 
 // ServeHTTP implements the http.Handler interface
 func (h Handler[Out, E]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -82,9 +97,9 @@ func (h Handler[Out, E]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Request: r,
 	})
 
-	var outVal any = res.Value
-	if res.Err != nil {
-		outVal = res.Err
+	var outVal any = res.value
+	if res.err != nil {
+		outVal = *res.err
 	}
 
 	// If there's a StatusCode, use that as the header
@@ -107,7 +122,7 @@ type BodyRequest[T any] struct {
 
 // BodyHandler is a type that represents a handler that will recieve a body
 // and output a body in the response.
-type BodyHandler[In, Out, E any] func(i BodyRequest[In]) Result[Out, E, *E]
+type BodyHandler[In, Out, E any] func(i BodyRequest[In]) Result[Out, E]
 
 // ServeHTTP implements the http.Handler interface
 func (h BodyHandler[In, Out, E]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -123,9 +138,9 @@ func (h BodyHandler[In, Out, E]) ServeHTTP(w http.ResponseWriter, r *http.Reques
 		Body:    in,
 	})
 
-	var outVal any = res.Value
-	if res.Err != nil {
-		outVal = res.Err
+	var outVal any = res.value
+	if res.err != nil {
+		outVal = *res.err
 	}
 
 	// If there's a StatusCode, use that as the header

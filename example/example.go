@@ -59,37 +59,37 @@ func (e *APIError) MarshalJSON() ([]byte, error) {
 	return byts, nil
 }
 
-func HandleGetValue(db *MutexDB[Record]) mplex.Handler[Record, APIError] {
-	return func(in mplex.Request) mplex.Result[Record, APIError, *APIError] {
+func HandleGetValue(db *MutexDB[Record]) mplex.Handler[Record, error] {
+	return func(in mplex.Request) mplex.Result[Record, error] {
 		vars := mux.Vars(in.Request)
 		key := vars["key"]
 
 		val, ok := db.Get(key)
 		if !ok {
 			// If we couldn't find it, return a 404
-			return mplex.Result[Record, APIError, *APIError]{
-				Err: &APIError{
-					Err: fmt.Errorf("key not found in the db: %s", key),
-				},
-				StatusCode: http.StatusNotFound,
-			}
+			return mplex.ErrResult[Record, error](
+				fmt.Errorf("key not found in the db: %s", key),
+				http.StatusNotFound,
+			)
 		}
 
-		return mplex.Result[Record, APIError, *APIError]{
-			Value: val,
-		}
+		return mplex.OKResult[Record, error](
+			val,
+			http.StatusOK,
+		)
 	}
 }
 
 func HandleSetValue(db *MutexDB[Record]) mplex.BodyHandler[Record, Record, APIError] {
-	return func(in mplex.BodyRequest[Record]) mplex.Result[Record, APIError, *APIError] {
+	return func(in mplex.BodyRequest[Record]) mplex.Result[Record, APIError] {
 		vars := mux.Vars(in.Request)
 		key := vars["key"]
 
 		db.Set(key, in.Body)
 
-		return mplex.Result[Record, APIError, *APIError]{
-			Value: in.Body,
-		}
+		return mplex.OKResult[Record, APIError](
+			in.Body,
+			http.StatusOK,
+		)
 	}
 }

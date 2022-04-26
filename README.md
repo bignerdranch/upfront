@@ -1,6 +1,9 @@
 # MPlex
 
-Mplex is an HTTP router built on the stdlib, but uses generics to do some of the
-type checking for responses.
-This is also a bit of a learning exercise, so I'll do my best to document any
-weird things that come out of using them.
+Mplex is an HTTP router built on the stdlib, but uses generics to do type checking for responses.
+
+# TODO's
+
+- [ ] Write out the readme
+- [ ] Create tests for both functions
+- [ ] Add license for dependencies
