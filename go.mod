@@ -1,4 +1,4 @@
-module github.com/jdholdren/mplex
+module github.com/jdholdren/upfront
 
 go 1.18
 

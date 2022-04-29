@@ -8,7 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/jdholdren/mplex"
+	"github.com/jdholdren/upfront"
 )
 
 func main() {
@@ -59,35 +59,35 @@ func (e *APIError) MarshalJSON() ([]byte, error) {
 	return byts, nil
 }
 
-func HandleGetValue(db *MutexDB[Record]) mplex.Handler[Record, error] {
-	return func(in mplex.Request) mplex.Result[Record, error] {
+func HandleGetValue(db *MutexDB[Record]) upfront.Handler[Record, error] {
+	return func(in upfront.Request) upfront.Result[Record, error] {
 		vars := mux.Vars(in.Request)
 		key := vars["key"]
 
 		val, ok := db.Get(key)
 		if !ok {
 			// If we couldn't find it, return a 404
-			return mplex.ErrResult[Record, error](
+			return upfront.ErrResult[Record, error](
 				fmt.Errorf("key not found in the db: %s", key),
 				http.StatusNotFound,
 			)
 		}
 
-		return mplex.OKResult[Record, error](
+		return upfront.OKResult[Record, error](
 			val,
 			http.StatusOK,
 		)
 	}
 }
 
-func HandleSetValue(db *MutexDB[Record]) mplex.BodyHandler[Record, Record, APIError] {
-	return func(in mplex.BodyRequest[Record]) mplex.Result[Record, APIError] {
+func HandleSetValue(db *MutexDB[Record]) upfront.BodyHandler[Record, Record, APIError] {
+	return func(in upfront.BodyRequest[Record]) upfront.Result[Record, APIError] {
 		vars := mux.Vars(in.Request)
 		key := vars["key"]
 
 		db.Set(key, in.Body)
 
-		return mplex.OKResult[Record, APIError](
+		return upfront.OKResult[Record, APIError](
 			in.Body,
 			http.StatusOK,
 		)

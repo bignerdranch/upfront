@@ -1,4 +1,4 @@
-package mplex
+package upfront
 
 import (
 	"encoding/json"
