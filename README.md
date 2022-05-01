@@ -5,5 +5,5 @@ Mplex is an HTTP router built on the stdlib, but uses generics to do type checki
 # TODO's
 
 - [ ] Write out the readme
-- [ ] Create tests for both functions
+- [x] Create tests for both functions
 - [ ] Add license for dependencies
