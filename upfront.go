@@ -52,9 +52,6 @@ var (
 	}
 )
 
-type Nillable interface {
-}
-
 // Result holds the necessary fields that will be output for a response
 type Result[T, E any] struct {
 	StatusCode int // If not set, this will be a 200: http.StatusOK

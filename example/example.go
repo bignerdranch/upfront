@@ -35,13 +35,13 @@ type Record struct {
 	Age  int    `json:"age"`
 }
 
-// APIError is a structure output of an error that occurred
+// APIError is a structured output of an error that occurred
 type APIError struct {
 	Err error
 }
 
 // MarshalJSON is implemented so our APIError looks good returning to the client
-func (e *APIError) MarshalJSON() ([]byte, error) {
+func (e APIError) MarshalJSON() ([]byte, error) {
 	msg := ""
 	if e.Err != nil {
 		msg = e.Err.Error()
@@ -59,21 +59,23 @@ func (e *APIError) MarshalJSON() ([]byte, error) {
 	return byts, nil
 }
 
-func HandleGetValue(db *MutexDB[Record]) upfront.Handler[Record, error] {
-	return func(in upfront.Request) upfront.Result[Record, error] {
+func HandleGetValue(db *MutexDB[Record]) upfront.Handler[Record, APIError] {
+	return func(in upfront.Request) upfront.Result[Record, APIError] {
 		vars := mux.Vars(in.Request)
 		key := vars["key"]
 
 		val, ok := db.Get(key)
 		if !ok {
 			// If we couldn't find it, return a 404
-			return upfront.ErrResult[Record, error](
-				fmt.Errorf("key not found in the db: %s", key),
+			return upfront.ErrResult[Record, APIError](
+				APIError{
+					Err: fmt.Errorf("key not found in the db: %s", key),
+				},
 				http.StatusNotFound,
 			)
 		}
 
-		return upfront.OKResult[Record, error](
+		return upfront.OKResult[Record, APIError](
 			val,
 			http.StatusOK,
 		)
