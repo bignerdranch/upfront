@@ -58,10 +58,3 @@ If you're looking to get into the source code, you'll just need
 [Go](https://go.dev/), and make sure it's at least version `1.18` to use
 generics.
 You can run `make test` at the root of the repo to easily run tests.
-
-# TODO's
-
-- [x] Write out the readme
-- [x] Create tests for both functions
-- [x] Add CI
-- [ ] Add license for dependencies
