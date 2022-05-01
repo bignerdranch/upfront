@@ -63,5 +63,5 @@ You can run `make test` at the root of the repo to easily run tests.
 
 - [x] Write out the readme
 - [x] Create tests for both functions
-- [ ] Add CI
+- [x] Add CI
 - [ ] Add license for dependencies
