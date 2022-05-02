@@ -8,7 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/jdholdren/upfront"
+	"github.com/bignerdranch/upfront"
 )
 
 func main() {

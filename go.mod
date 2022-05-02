@@ -1,4 +1,4 @@
-module github.com/jdholdren/upfront
+module github.com/bignerdranch/upfront
 
 go 1.18
 
